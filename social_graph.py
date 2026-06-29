@@ -7,12 +7,14 @@ from pathlib import Path
 from data_loader import load_graph_from_folder
 from models import FollowInteraction, FollowResult, SearchResult, User
 from text_processing import tokenize_text
+from trie import Trie
 
 
 class SocialGraph:
     def __init__(self) -> None:
         self.users_by_id: dict[int, User] = {}
         self.user_id_by_username: dict[str, int] = {}
+        self.username_trie = Trie()
         self.inverted_index: dict[str, set[int]] = defaultdict(set)#rec -> skup korisnika kod kojih se ta rec pojavljuje u bio
         self.bio_words_by_user: dict[int, set[str]] = {}
 
@@ -44,6 +46,7 @@ class SocialGraph:
 
         self.users_by_id[user.user_id] = user
         self.user_id_by_username[username_key] = user.user_id
+        self.username_trie.insert(user.username, user.user_id)
         self.page_rank[user.user_id] = 0.0
 
         bio_words = set(tokenize_text(user.bio))
@@ -210,6 +213,19 @@ class SocialGraph:
             limit,
             results,
             key=lambda result: (result.score, result.page_rank, result.user.username.lower()),
+        )
+
+    def autocomplete_usernames(self, prefix: str, limit: int = 10) -> list[User]:
+        prefix = prefix.strip().lower()
+        if not prefix:
+            return []
+
+        user_ids = self.username_trie.search_prefix(prefix)
+        users = [self.users_by_id[user_id] for user_id in user_ids]
+        return heapq.nlargest(
+            limit,
+            users,
+            key=lambda user: (self.page_rank.get(user.user_id, 0.0), user.username.lower()),
         )
 
     def get_interaction_history(self, user_id: int) -> list[FollowInteraction]:

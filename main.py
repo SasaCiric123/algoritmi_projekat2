@@ -32,7 +32,8 @@ def run_menu(graph: SocialGraph) -> None:
         print("3. Dodavanje nove follow veze")
         print("4. Prikaz istorije interakcija")
         print("5. BFS obilazak mreze")
-        print("6. Izlaz")
+        print("6. Autocomplete username")
+        print("7. Izlaz")
 
         choice = input("Izaberite opciju: ").strip()
 
@@ -47,6 +48,8 @@ def run_menu(graph: SocialGraph) -> None:
         elif choice == "5":
             bfs_menu(graph)
         elif choice == "6":
+            autocomplete_menu(graph)
+        elif choice == "7":
             print("Kraj programa.")
             break
         else:
@@ -134,6 +137,20 @@ def bfs_menu(graph: SocialGraph) -> None:
 
         for connected_user in sorted(users, key=lambda item: item.username.lower()):
             print(f"- {format_user(connected_user)}")
+
+
+def autocomplete_menu(graph: SocialGraph) -> None:
+    prefix = input("Unesite pocetak username-a: ").strip()
+    suggestions = graph.autocomplete_usernames(prefix, limit=10)
+
+    if not suggestions:
+        print("Nema autocomplete predloga za zadati prefiks.")
+        return
+
+    print("\nAutocomplete predlozi:")
+    for user in suggestions:
+        rank = graph.page_rank.get(user.user_id, 0.0)
+        print(f"- {format_user(user)} | PageRank={rank:.8f}")
 
 
 def read_user(graph: SocialGraph, prompt: str) -> User | None:
