@@ -234,9 +234,12 @@ class SocialGraph:
         if not username:
             return []
 
+        max_distance = max(2, len(username) // 2 + 1)
         candidates = []
         for user in self.users_by_id.values():
             distance = levenshtein_distance(username, user.username)
+            if distance > max_distance:
+                continue
             candidates.append((distance, -self.page_rank.get(user.user_id, 0.0), user.username.lower(), user))
 
         closest = heapq.nsmallest(limit, candidates, key=lambda item: item[:3])
