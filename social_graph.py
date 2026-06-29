@@ -15,11 +15,18 @@ class User:
 
 
 @dataclass(frozen=True)
-class SearchResult:
+class SearchResult: #jedan rezultat pretrage
     user: User
-    relevance: float
-    page_rank: float
-    score: float
+    relevance: float #koliko se dobro poklapa
+    page_rank: float #njegov pr
+    score: float #relevance + page rank ---ukupan skor
+
+
+@dataclass(frozen=True)
+class FollowInteraction:
+    order: int
+    from_id: int
+    to_id: int
 
 
 class SocialGraph:
@@ -37,6 +44,9 @@ class SocialGraph:
         self.blocked_count = 0
         self.connection_count = 0
         self.page_rank: dict[int, float] = {}
+        self.following_history: dict[int, list[FollowInteraction]] = defaultdict(list)
+        self.follower_history: dict[int, list[FollowInteraction]] = defaultdict(list)
+        self._interaction_counter = 0
 
     @classmethod
     def load_from_folder(cls, folder_path: str | Path) -> SocialGraph:
@@ -104,11 +114,14 @@ class SocialGraph:
         bio_words = set(self._tokenize_text(user.bio))
         self.bio_words_by_user[user.user_id] = bio_words
         for word in bio_words:
-            self.inverted_index[word].add(user.user_id)
+            self.inverted_index[word].add(user.user_id) #dodajem reci iz bio-a u inverted index
 
-    def add_follow(self, from_id: int, to_id: int) -> bool:
+    def add_follow(self, from_id: int, to_id: int, record_history: bool = False) -> bool:
         self._ensure_known_user(from_id)
         self._ensure_known_user(to_id)
+
+        if from_id == to_id:
+            return False
 
         if to_id in self.following[from_id]:
             return False
@@ -117,6 +130,17 @@ class SocialGraph:
         self.followers[to_id].add(from_id)
         self.out_degree[from_id] += 1
         self.connection_count += 1
+
+        if record_history:
+            self._interaction_counter += 1
+            interaction = FollowInteraction(
+                order=self._interaction_counter,
+                from_id=from_id,
+                to_id=to_id,
+            )
+            self.following_history[from_id].append(interaction)
+            self.follower_history[to_id].append(interaction)
+
         return True
 
     def add_block(self, blocker_id: int, blocked_id: int) -> bool:
@@ -135,6 +159,12 @@ class SocialGraph:
         if user_id is None:
             return None
         return self.users_by_id[user_id]
+
+    def get_user_by_id_or_username(self, value: str) -> User | None:
+        value = value.strip()
+        if value.isdigit():
+            return self.users_by_id.get(int(value))
+        return self.get_user_by_username(value)
 
     def most_followed(self, limit: int = 10) -> list[tuple[User, int]]:
         ranked = sorted(
@@ -204,7 +234,7 @@ class SocialGraph:
         if not query:
             return []
 
-        relevance_by_user: dict[int, float] = defaultdict(float)
+        relevance_by_user: dict[int, float] = defaultdict(float) #ovde skupljam bodove za svakog korisnika
         query_words = set(self._tokenize_text(query))
 
         for username_key, user_id in self.user_id_by_username.items():
@@ -215,14 +245,14 @@ class SocialGraph:
             elif query in username_key:
                 relevance_by_user[user_id] += 1.0
 
-        for word in query_words:
+        for word in query_words: #prolazi kroz sve reci iz bio-a tako sto pogleda inverted index
             for user_id in self.inverted_index.get(word, set()):
                 relevance_by_user[user_id] += 1.0
 
         results = []
         for user_id, relevance in relevance_by_user.items():
             page_rank = self.page_rank.get(user_id, 0.0)
-            score = relevance + page_rank
+            score = relevance + page_rank #sto je uticanjniji korisnik, score je veci
             results.append(
                 SearchResult(
                     user=self.users_by_id[user_id],
@@ -232,11 +262,16 @@ class SocialGraph:
                 )
             )
 
-        return heapq.nlargest(
+        return heapq.nlargest( #uzima sve rezultate i sortira, te vraca koliki je limit
             limit,
             results,
             key=lambda result: (result.score, result.page_rank, result.user.username.lower()),
         )
+
+    def get_interaction_history(self, user_id: int) -> list[FollowInteraction]:
+        self._ensure_known_user(user_id)
+        interactions = self.following_history[user_id] + self.follower_history[user_id]
+        return sorted(interactions, key=lambda interaction: interaction.order)
 
     def _ensure_known_user(self, user_id: int) -> None:
         if user_id not in self.users_by_id:

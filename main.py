@@ -1,7 +1,7 @@
 from pathlib import Path
 import sys
 
-from social_graph import SocialGraph
+from social_graph import FollowInteraction, SocialGraph, User
 
 
 DEFAULT_DATASET = Path("data") / "dataset" / "dataset" / "small"
@@ -18,22 +18,128 @@ def main() -> None:
     print(f"Broj blokiranja: {graph.blocked_count}")
 
     iterations = graph.calculate_page_rank()
-    print(f"\nPageRank izracunat u {iterations} iteracija.")
-    print("Najuticajniji korisnici po PageRank-u:")
-    for user, rank in graph.top_page_rank(limit=5):
-        print(f"- {user.username} (id={user.user_id}) - PageRank: {rank:.8f}")
+    print(f"PageRank izracunat u {iterations} iteracija.")
 
-    most_followed = graph.most_followed(limit=5)
-    print("\nKorisnici sa najvise pratilaca:")
-    for user, follower_count in most_followed:
-        print(f"- {user.username} (id={user.user_id}) - pratioci: {follower_count}")
+    run_menu(graph)
 
-    print("\nPrimer pretrage za upit 'vegan':")
-    for result in graph.search_users("vegan", limit=5):
+
+def run_menu(graph: SocialGraph) -> None:
+    while True:
+        print("\n--- Meni ---")
+        print("1. Pretraga korisnika")
+        print("2. Prikaz najuticajnijih korisnika")
+        print("3. Dodavanje nove follow veze")
+        print("4. Prikaz istorije interakcija")
+        print("5. Izlaz")
+
+        choice = input("Izaberite opciju: ").strip()
+
+        if choice == "1":
+            search_users_menu(graph)
+        elif choice == "2":
+            show_top_page_rank_menu(graph)
+        elif choice == "3":
+            add_follow_menu(graph)
+        elif choice == "4":
+            show_history_menu(graph)
+        elif choice == "5":
+            print("Kraj programa.")
+            break
+        else:
+            print("Nepostojeca opcija. Pokusajte ponovo.")
+
+
+def search_users_menu(graph: SocialGraph) -> None:
+    query = input("Unesite username ili rec iz biografije: ").strip()
+    limit = read_limit()
+    results = graph.search_users(query, limit=limit)
+
+    if not results:
+        print("Nema rezultata za zadati upit.")
+        return
+
+    print("\nRezultati pretrage:")
+    for result in results:
         print(
-            f"- {result.user.username} (id={result.user.user_id}) "
-            f"- relevance: {result.relevance:.1f}, PageRank: {result.page_rank:.8f}"
+            f"- {format_user(result.user)} | relevance={result.relevance:.1f} "
+            f"| PageRank={result.page_rank:.8f} | score={result.score:.8f}"
         )
+
+
+def show_top_page_rank_menu(graph: SocialGraph) -> None:
+    limit = read_limit()
+    print("\nNajuticajniji korisnici:")
+    for user, rank in graph.top_page_rank(limit=limit):
+        print(f"- {format_user(user)} | PageRank={rank:.8f}")
+
+
+def add_follow_menu(graph: SocialGraph) -> None:
+    follower = read_user(graph, "Korisnik koji prati (id ili username): ")
+    followed = read_user(graph, "Korisnik koji se prati (id ili username): ")
+
+    if follower is None or followed is None:
+        print("Nije moguce dodati vezu jer korisnik ne postoji.")
+        return
+
+    added = graph.add_follow(follower.user_id, followed.user_id, record_history=True)
+    if not added:
+        print("Veza nije dodata. Korisnik mozda vec prati zadatog korisnika ili je izabran isti korisnik.")
+        return
+
+    iterations = graph.calculate_page_rank()
+    print(f"Dodata je veza: {follower.username} -> {followed.username}")
+    print(f"PageRank je ponovo izracunat u {iterations} iteracija.")
+
+
+def show_history_menu(graph: SocialGraph) -> None:
+    user = read_user(graph, "Unesite korisnika za prikaz istorije (id ili username): ")
+    if user is None:
+        print("Korisnik ne postoji.")
+        return
+
+    history = graph.get_interaction_history(user.user_id)
+    if not history:
+        print("Nema novih interakcija za ovog korisnika tokom trenutnog pokretanja programa.")
+        return
+
+    print(f"\nIstorija interakcija za {format_user(user)}:")
+    for interaction in history:
+        print(format_interaction(graph, user, interaction))
+
+
+def read_user(graph: SocialGraph, prompt: str) -> User | None:
+    value = input(prompt).strip()
+    return graph.get_user_by_id_or_username(value)
+
+
+def read_limit(default: int = 10) -> int:
+    value = input(f"Broj rezultata [{default}]: ").strip()
+    if not value:
+        return default
+
+    try:
+        limit = int(value)
+    except ValueError:
+        print(f"Neispravan broj. Koristim podrazumevano: {default}.")
+        return default
+
+    if limit <= 0:
+        print(f"Broj mora biti pozitivan. Koristim podrazumevano: {default}.")
+        return default
+    return limit
+
+
+def format_interaction(graph: SocialGraph, selected_user: User, interaction: FollowInteraction) -> str:
+    follower = graph.users_by_id[interaction.from_id]
+    followed = graph.users_by_id[interaction.to_id]
+
+    if selected_user.user_id == interaction.from_id:
+        return f"{interaction.order}. Zapratio je korisnika {format_user(followed)}"
+    return f"{interaction.order}. Zapratio ga je korisnik {format_user(follower)}"
+
+
+def format_user(user: User) -> str:
+    return f"{user.username} (id={user.user_id})"
 
 
 if __name__ == "__main__":
