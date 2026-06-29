@@ -71,7 +71,7 @@ def search_users_menu(graph: SocialGraph) -> None:
 
 
 def show_top_page_rank_menu(graph: SocialGraph) -> None:
-    limit = read_limit()
+    limit = 10
     print("\nNajuticajniji korisnici:")
     for user, rank in graph.top_page_rank(limit=limit):
         print(f"- {format_user(user)} | PageRank={rank:.8f}")
