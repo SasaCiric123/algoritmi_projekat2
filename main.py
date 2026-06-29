@@ -31,7 +31,8 @@ def run_menu(graph: SocialGraph) -> None:
         print("2. Prikaz najuticajnijih korisnika")
         print("3. Dodavanje nove follow veze")
         print("4. Prikaz istorije interakcija")
-        print("5. Izlaz")
+        print("5. BFS obilazak mreze")
+        print("6. Izlaz")
 
         choice = input("Izaberite opciju: ").strip()
 
@@ -44,6 +45,8 @@ def run_menu(graph: SocialGraph) -> None:
         elif choice == "4":
             show_history_menu(graph)
         elif choice == "5":
+            bfs_menu(graph)
+        elif choice == "6":
             print("Kraj programa.")
             break
         else:
@@ -108,26 +111,55 @@ def show_history_menu(graph: SocialGraph) -> None:
         print(format_interaction(graph, user, interaction))
 
 
+def bfs_menu(graph: SocialGraph) -> None:
+    user = read_user(graph, "Unesite pocetnog korisnika (id ili username): ")
+    if user is None:
+        print("Korisnik ne postoji.")
+        return
+
+    max_level = read_positive_int("Do kog nivoa zelite obilazak: ", default=3)
+    levels = graph.bfs_connections_by_level(user.user_id, max_level)
+
+    if not levels:
+        print("Nema dostiznih korisnika za zadati nivo.")
+        return
+
+    print(f"\nBFS konekcije za {format_user(user)}:")
+    for level in range(1, max_level + 1):
+        users = levels.get(level, [])
+        print(f"Nivo {level}:")
+        if not users:
+            print("- nema korisnika")
+            continue
+
+        for connected_user in sorted(users, key=lambda item: item.username.lower()):
+            print(f"- {format_user(connected_user)}")
+
+
 def read_user(graph: SocialGraph, prompt: str) -> User | None:
     value = input(prompt).strip()
     return graph.get_user_by_id_or_username(value)
 
 
 def read_limit(default: int = 10) -> int:
-    value = input(f"Broj rezultata [{default}]: ").strip()
+    return read_positive_int(f"Broj rezultata [{default}]: ", default)
+
+
+def read_positive_int(prompt: str, default: int) -> int:
+    value = input(prompt).strip()
     if not value:
         return default
 
     try:
-        limit = int(value)
+        number = int(value)
     except ValueError:
         print(f"Neispravan broj. Koristim podrazumevano: {default}.")
         return default
 
-    if limit <= 0:
+    if number <= 0:
         print(f"Broj mora biti pozitivan. Koristim podrazumevano: {default}.")
         return default
-    return limit
+    return number
 
 
 def format_interaction(graph: SocialGraph, selected_user: User, interaction: FollowInteraction) -> str:

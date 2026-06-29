@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import defaultdict, deque
 import heapq
 from pathlib import Path
 
@@ -216,6 +216,31 @@ class SocialGraph:
         self._ensure_known_user(user_id)
         interactions = self.following_history[user_id] + self.follower_history[user_id]
         return sorted(interactions, key=lambda interaction: interaction.order)
+
+    def bfs_connections_by_level(self, start_id: int, max_level: int) -> dict[int, list[User]]:
+        self._ensure_known_user(start_id)
+        if max_level <= 0:
+            return {}
+
+        visited = {start_id}
+        queue = deque([(start_id, 0)])
+        levels: dict[int, list[User]] = defaultdict(list)
+
+        while queue:
+            current_id, current_level = queue.popleft()
+            if current_level == max_level:
+                continue
+
+            next_level = current_level + 1
+            for neighbor_id in self.following[current_id]:
+                if neighbor_id in visited:
+                    continue
+
+                visited.add(neighbor_id)
+                levels[next_level].append(self.users_by_id[neighbor_id])
+                queue.append((neighbor_id, next_level))
+
+        return dict(levels)
 
     def _ensure_known_user(self, user_id: int) -> None:
         if user_id not in self.users_by_id:
