@@ -82,9 +82,12 @@ def show_top_page_rank_menu(graph: SocialGraph) -> None:
 
 def add_follow_menu(graph: SocialGraph) -> None:
     follower = read_user(graph, "Korisnik koji prati (id ili username): ")
-    followed = read_user(graph, "Korisnik koji se prati (id ili username): ")
+    if follower is None:
+        print("Nije moguce dodati vezu jer korisnik ne postoji.")
+        return
 
-    if follower is None or followed is None:
+    followed = read_user(graph, "Korisnik koji se prati (id ili username): ")
+    if followed is None:
         print("Nije moguce dodati vezu jer korisnik ne postoji.")
         return
 
@@ -155,7 +158,18 @@ def autocomplete_menu(graph: SocialGraph) -> None:
 
 def read_user(graph: SocialGraph, prompt: str) -> User | None:
     value = input(prompt).strip()
-    return graph.get_user_by_id_or_username(value)
+    user = graph.get_user_by_id_or_username(value)
+    if user is not None:
+        return user
+
+    if value and not value.isdigit():
+        suggestions = graph.suggest_usernames(value, limit=5)
+        if suggestions:
+            print("Da li ste mislili:")
+            for suggestion in suggestions:
+                print(f"- {format_user(suggestion)}")
+
+    return None
 
 
 def read_limit(default: int = 10) -> int:

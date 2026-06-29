@@ -2,16 +2,16 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class TrieNode:
-    children: dict[str, "TrieNode"] = field(default_factory=dict)
-    user_ids: list[int] = field(default_factory=list)
+class TrieNode: #jedan cvor u stablu
+    children: dict[str, "TrieNode"] = field(default_factory=dict) #cuva slova
+    user_ids: list[int] = field(default_factory=list) #cuva id korisnika cije se ime zavrsava u ovom cvoru
 
 
-class Trie:
+class Trie: #stablo slicno onom iz proslog projekta
     def __init__(self) -> None:
         self.root = TrieNode()
 
-    def insert(self, word: str, user_id: int) -> None:
+    def insert(self, word: str, user_id: int) -> None: #ide slovo po slovo i ubacuje u stablo
         node = self.root
         for char in word.lower():
             if char not in node.children:
@@ -22,11 +22,11 @@ class Trie:
     def search_prefix(self, prefix: str) -> list[int]:
         node = self.root
         for char in prefix.lower():
-            if char not in node.children:
+            if char not in node.children: #ide slovo po slovo npr s a l e, ako negde nema da ode, znaci da ne postoji username sa ovim prefixom
                 return []
             node = node.children[char]
 
-        user_ids: list[int] = []
+        user_ids: list[int] = [] #ovde sam presao sva slova, uzimaju se id od korisnika koji su u tom cvoru i vracaju se
         self._collect_user_ids(node, user_ids)
         return user_ids
 

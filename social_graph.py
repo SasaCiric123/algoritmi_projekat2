@@ -6,6 +6,7 @@ from pathlib import Path
 
 from data_loader import load_graph_from_folder
 from models import FollowInteraction, FollowResult, SearchResult, User
+from string_similarity import levenshtein_distance
 from text_processing import tokenize_text
 from trie import Trie
 
@@ -46,7 +47,7 @@ class SocialGraph:
 
         self.users_by_id[user.user_id] = user
         self.user_id_by_username[username_key] = user.user_id
-        self.username_trie.insert(user.username, user.user_id)
+        self.username_trie.insert(user.username, user.user_id) #dodaje slova u stablo
         self.page_rank[user.user_id] = 0.0
 
         bio_words = set(tokenize_text(user.bio))
@@ -220,13 +221,26 @@ class SocialGraph:
         if not prefix:
             return []
 
-        user_ids = self.username_trie.search_prefix(prefix)
-        users = [self.users_by_id[user_id] for user_id in user_ids]
-        return heapq.nlargest(
+        user_ids = self.username_trie.search_prefix(prefix) #prolazi kroz sve username-e i vraca id-e
+        users = [self.users_by_id[user_id] for user_id in user_ids] #svi korisnici koji se poklapaju
+        return heapq.nlargest( #vraca onoliko koliki je limit
             limit,
             users,
             key=lambda user: (self.page_rank.get(user.user_id, 0.0), user.username.lower()),
         )
+
+    def suggest_usernames(self, username: str, limit: int = 5) -> list[User]:
+        username = username.strip().lower()
+        if not username:
+            return []
+
+        candidates = []
+        for user in self.users_by_id.values():
+            distance = levenshtein_distance(username, user.username)
+            candidates.append((distance, -self.page_rank.get(user.user_id, 0.0), user.username.lower(), user))
+
+        closest = heapq.nsmallest(limit, candidates, key=lambda item: item[:3])
+        return [user for _, _, _, user in closest]
 
     def get_interaction_history(self, user_id: int) -> list[FollowInteraction]:
         self._ensure_known_user(user_id)
