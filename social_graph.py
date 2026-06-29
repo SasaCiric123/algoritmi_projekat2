@@ -1,38 +1,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
 import heapq
 from pathlib import Path
-import re
 
-
-@dataclass(frozen=True)
-class User:
-    user_id: int
-    username: str
-    bio: str
-
-
-@dataclass(frozen=True)
-class SearchResult: #jedan rezultat pretrage
-    user: User
-    relevance: float #koliko se dobro poklapa
-    page_rank: float #njegov pr
-    score: float #relevance + page rank ---ukupan skor
-
-
-@dataclass(frozen=True)
-class FollowInteraction:
-    order: int
-    from_id: int
-    to_id: int
-
-
-@dataclass(frozen=True)
-class FollowResult:
-    success: bool
-    message: str
+from data_loader import load_graph_from_folder
+from models import FollowInteraction, FollowResult, SearchResult, User
+from text_processing import tokenize_text
 
 
 class SocialGraph:
@@ -56,54 +30,9 @@ class SocialGraph:
 
     @classmethod
     def load_from_folder(cls, folder_path: str | Path) -> SocialGraph:
-        folder = Path(folder_path)
         graph = cls()
-
-        graph.load_users(folder / "users.txt")
-        graph.load_connections(folder / "connections.txt")
-        graph.load_blocked(folder / "blocked.txt")
-
+        load_graph_from_folder(graph, folder_path)
         return graph
-
-    def load_users(self, file_path: str | Path) -> None:
-        with Path(file_path).open("r", encoding="utf-8") as file:
-            for line_number, line in enumerate(file, start=1):
-                line = line.strip()
-                if not line:
-                    continue
-
-                parts = line.split("|", maxsplit=2)
-                if len(parts) != 3:
-                    raise ValueError(f"Neispravan format korisnika u liniji {line_number}: {line}")
-
-                user_id = int(parts[0])
-                username = parts[1]
-                bio = parts[2]
-                self.add_user(User(user_id=user_id, username=username, bio=bio))
-
-    def load_connections(self, file_path: str | Path) -> None:
-        with Path(file_path).open("r", encoding="utf-8") as file:
-            for line_number, line in enumerate(file, start=1):
-                line = line.strip()
-                if not line:
-                    continue
-
-                from_id, to_id = self._parse_id_pair(line, line_number, "follow veze")
-                self.add_follow(from_id, to_id)
-
-    def load_blocked(self, file_path: str | Path) -> None:
-        path = Path(file_path)
-        if not path.exists():
-            return
-
-        with path.open("r", encoding="utf-8") as file:
-            for line_number, line in enumerate(file, start=1):
-                line = line.strip()
-                if not line:
-                    continue
-
-                blocker_id, blocked_id = self._parse_id_pair(line, line_number, "blokiranja")
-                self.add_block(blocker_id, blocked_id)
 
     def add_user(self, user: User) -> None:
         if user.user_id in self.users_by_id:
@@ -117,7 +46,7 @@ class SocialGraph:
         self.user_id_by_username[username_key] = user.user_id
         self.page_rank[user.user_id] = 0.0
 
-        bio_words = set(self._tokenize_text(user.bio))
+        bio_words = set(tokenize_text(user.bio))
         self.bio_words_by_user[user.user_id] = bio_words
         for word in bio_words:
             self.inverted_index[word].add(user.user_id) #dodajem reci iz bio-a u inverted index
@@ -250,7 +179,7 @@ class SocialGraph:
             return []
 
         relevance_by_user: dict[int, float] = defaultdict(float) #ovde skupljam bodove za svakog korisnika
-        query_words = set(self._tokenize_text(query))
+        query_words = set(tokenize_text(query))
 
         for username_key, user_id in self.user_id_by_username.items():
             if username_key == query:
@@ -291,14 +220,3 @@ class SocialGraph:
     def _ensure_known_user(self, user_id: int) -> None:
         if user_id not in self.users_by_id:
             raise ValueError(f"Nepoznat korisnik id={user_id}.")
-
-    @staticmethod
-    def _parse_id_pair(line: str, line_number: int, label: str) -> tuple[int, int]:
-        parts = line.split("|")
-        if len(parts) != 2:
-            raise ValueError(f"Neispravan format {label} u liniji {line_number}: {line}")
-        return int(parts[0]), int(parts[1])
-
-    @staticmethod
-    def _tokenize_text(text: str) -> list[str]:#prebacuje u mala slova, izdvaja reci
-        return re.findall(r"[a-z0-9_]+", text.lower())

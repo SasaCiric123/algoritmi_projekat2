@@ -1,7 +1,8 @@
 from pathlib import Path
 import sys
 
-from social_graph import FollowInteraction, SocialGraph, User
+from models import FollowInteraction, User
+from social_graph import SocialGraph
 
 
 DEFAULT_DATASET = Path("data") / "dataset" / "dataset" / "small"
