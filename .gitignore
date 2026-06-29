@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+
+.idea/
+.agents/
+
+data/dataset.zip
+data/dataset_download
