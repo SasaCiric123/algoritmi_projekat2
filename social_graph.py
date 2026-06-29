@@ -29,6 +29,12 @@ class FollowInteraction:
     to_id: int
 
 
+@dataclass(frozen=True)
+class FollowResult:
+    success: bool
+    message: str
+
+
 class SocialGraph:
     def __init__(self) -> None:
         self.users_by_id: dict[int, User] = {}
@@ -116,15 +122,18 @@ class SocialGraph:
         for word in bio_words:
             self.inverted_index[word].add(user.user_id) #dodajem reci iz bio-a u inverted index
 
-    def add_follow(self, from_id: int, to_id: int, record_history: bool = False) -> bool:
+    def add_follow(self, from_id: int, to_id: int, record_history: bool = False) -> FollowResult:
         self._ensure_known_user(from_id)
         self._ensure_known_user(to_id)
 
         if from_id == to_id:
-            return False
+            return FollowResult(False, "Korisnik ne moze da prati samog sebe.")
+
+        if self.is_blocked_between(from_id, to_id):
+            return FollowResult(False, "Veza nije dozvoljena jer postoji blokiranje izmedju korisnika.")
 
         if to_id in self.following[from_id]:
-            return False
+            return FollowResult(False, "Korisnik vec prati zadatog korisnika.")
 
         self.following[from_id].add(to_id)
         self.followers[to_id].add(from_id)
@@ -141,7 +150,7 @@ class SocialGraph:
             self.following_history[from_id].append(interaction)
             self.follower_history[to_id].append(interaction)
 
-        return True
+        return FollowResult(True, "Veza je uspesno dodata.")
 
     def add_block(self, blocker_id: int, blocked_id: int) -> bool:
         self._ensure_known_user(blocker_id)
@@ -153,6 +162,12 @@ class SocialGraph:
         self.blocked_by_user[blocker_id].add(blocked_id)
         self.blocked_count += 1
         return True
+
+    def is_blocked_between(self, first_id: int, second_id: int) -> bool:
+        return (
+            second_id in self.blocked_by_user[first_id]
+            or first_id in self.blocked_by_user[second_id]
+        )
 
     def get_user_by_username(self, username: str) -> User | None:
         user_id = self.user_id_by_username.get(username.lower())

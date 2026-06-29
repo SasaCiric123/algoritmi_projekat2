@@ -81,9 +81,9 @@ def add_follow_menu(graph: SocialGraph) -> None:
         print("Nije moguce dodati vezu jer korisnik ne postoji.")
         return
 
-    added = graph.add_follow(follower.user_id, followed.user_id, record_history=True)
-    if not added:
-        print("Veza nije dodata. Korisnik mozda vec prati zadatog korisnika ili je izabran isti korisnik.")
+    result = graph.add_follow(follower.user_id, followed.user_id, record_history=True)
+    if not result.success:
+        print(result.message)
         return
 
     iterations = graph.calculate_page_rank()
