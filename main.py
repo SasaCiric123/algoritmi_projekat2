@@ -55,7 +55,7 @@ def run_menu(graph: SocialGraph) -> None:
 
 def search_users_menu(graph: SocialGraph) -> None:
     query = input("Unesite username ili rec iz biografije: ").strip()
-    limit = read_limit()
+    limit = 10
     results = graph.search_users(query, limit=limit)
 
     if not results:
