@@ -147,6 +147,13 @@ def autocomplete_menu(graph: SocialGraph) -> None:
     suggestions = graph.autocomplete_usernames(prefix, limit=10)
 
     if not suggestions:
+        username_suggestions = graph.suggest_usernames(prefix, limit=5, max_distance=2)
+        if username_suggestions:
+            print("Nema tacnih autocomplete predloga. Da li ste mislili:")
+            for user in username_suggestions:
+                print(f"- {format_user(user)}")
+            return
+
         print("Nema autocomplete predloga za zadati prefiks.")
         return
 

@@ -229,16 +229,20 @@ class SocialGraph:
             key=lambda user: (self.page_rank.get(user.user_id, 0.0), user.username.lower()),
         )
 
-    def suggest_usernames(self, username: str, limit: int = 5) -> list[User]:
+    def suggest_usernames(self, username: str, limit: int = 5, max_distance: int | None = None) -> list[User]:
         username = username.strip().lower()
         if not username:
             return []
 
-        max_distance = max(2, len(username) // 2 + 1)
+        max_allowed_distance = max_distance if max_distance is not None else max(2, len(username) // 2 + 1)
         candidates = []
         for user in self.users_by_id.values():
-            distance = levenshtein_distance(username, user.username)
-            if distance > max_distance:
+            username_prefix = user.username[:len(username)]
+            distance = min(
+                levenshtein_distance(username, user.username),
+                levenshtein_distance(username, username_prefix),
+            )
+            if distance > max_allowed_distance:
                 continue
             candidates.append((distance, -self.page_rank.get(user.user_id, 0.0), user.username.lower(), user))
 
