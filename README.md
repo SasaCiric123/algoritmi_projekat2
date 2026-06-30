@@ -133,6 +133,12 @@ Opcija: 6
 Prefiks: gui
 ```
 
+Prihvata se i oblik sa zvezdicom:
+
+```text
+Prefiks: gui*
+```
+
 Did you mean:
 
 ```text

@@ -217,7 +217,7 @@ class SocialGraph:
         )
 
     def autocomplete_usernames(self, prefix: str, limit: int = 10) -> list[User]:
-        prefix = prefix.strip().lower()
+        prefix = prefix.strip().lower().rstrip("*")
         if not prefix:
             return []
 
@@ -317,7 +317,6 @@ class SocialGraph:
                 for user_id in user_ids
                 if self.out_degree[user_id] == 0
             )
-            dangling_share = dangling_sum / user_count
             new_ranks = {}
             max_change = 0.0
 
@@ -327,7 +326,8 @@ class SocialGraph:
                     incoming_rank += ranks[follower_id] / self.out_degree[follower_id]
 
                 restart_rank = 1.0 - damping_factor if user_id == start_id else 0.0
-                new_rank = restart_rank + damping_factor * (incoming_rank + dangling_share)
+                dangling_rank = dangling_sum if user_id == start_id else 0.0
+                new_rank = restart_rank + damping_factor * (incoming_rank + dangling_rank)
                 new_ranks[user_id] = new_rank
                 max_change = max(max_change, abs(new_rank - ranks[user_id]))
 
