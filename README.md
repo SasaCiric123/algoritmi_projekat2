@@ -4,13 +4,23 @@ Konzolna Python aplikacija koja simulira deo drustvene mreze nad usmerenim grafo
 
 ## Pokretanje
 
-Podrazumevano se pokrece nad `small` skupom:
+Pokretanje:
 
 ```bash
 python main.py
 ```
 
-Za drugi skup podataka proslediti putanju do foldera:
+Na pocetku programa bira se skup podataka:
+
+```text
+1. small (pritisnite Enter za small)
+2. medium
+3. full
+```
+
+Ako se samo pritisne Enter, koristi se `small`.
+
+Za brze pokretanje bez pocetnog izbora moze se proslediti putanja do foldera:
 
 ```bash
 python main.py data/dataset/dataset/medium

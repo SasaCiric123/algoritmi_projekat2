@@ -6,10 +6,16 @@ from social_graph import SocialGraph
 
 
 DEFAULT_DATASET = Path("data") / "dataset" / "dataset" / "small"
+DATASET_ROOT = Path("data") / "dataset" / "dataset"
+DATASET_OPTIONS = {
+    "1": DATASET_ROOT / "small",
+    "2": DATASET_ROOT / "medium",
+    "3": DATASET_ROOT / "full",
+}
 
 
 def main() -> None:
-    dataset_path = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_DATASET
+    dataset_path = Path(sys.argv[1]) if len(sys.argv) > 1 else choose_dataset()
     graph = SocialGraph.load_from_folder(dataset_path)
 
     print("Drustvena mreza je uspesno ucitana.")
@@ -22,6 +28,23 @@ def main() -> None:
     print(f"PageRank izracunat u {iterations} iteracija.")
 
     run_menu(graph)
+
+
+def choose_dataset() -> Path:
+    print("Izaberite skup podataka:")
+    print("1. small (pritisnite Enter za small)")
+    print("2. medium")
+    print("3. full")
+
+    choice = input("Izbor: ").strip()
+    if not choice:
+        return DEFAULT_DATASET
+
+    dataset_path = DATASET_OPTIONS.get(choice)
+    if dataset_path is None:
+        print("Nepostojeca opcija. Koristim small skup.")
+        return DEFAULT_DATASET
+    return dataset_path
 
 
 def run_menu(graph: SocialGraph) -> None:
