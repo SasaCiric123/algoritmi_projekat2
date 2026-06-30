@@ -183,11 +183,15 @@ def recommendations_menu(graph: SocialGraph) -> None:
         print("Nema dostupnih preporuka za zadatog korisnika.")
         return
 
+    max_ppr = max(result.ppr_score for result in recommendations) or 1.0
     print(f"\nPreporuke za {format_user(user)}:")
     for result in recommendations:
+        network_relevance = result.ppr_score / max_ppr * 100
+        common_words = graph.common_bio_word_count(user.user_id, result.user.user_id)
         print(
             f"- {format_user(result.user)} | score={result.score:.8f} "
-            f"| PPR={result.ppr_score:.8f} | bio={result.content_similarity:.4f}"
+            f"| mrezna relevantnost={network_relevance:.1f}% "
+            f"| zajednicke bio reci={common_words}"
         )
 
 

@@ -312,7 +312,7 @@ class SocialGraph:
         ranks[start_id] = 1.0
 
         for _ in range(max_iterations):
-            dangling_sum = sum(
+            dangling_sum = sum(#oni koji nikoga ne prate
                 ranks[user_id]
                 for user_id in user_ids
                 if self.out_degree[user_id] == 0
@@ -323,7 +323,7 @@ class SocialGraph:
 
             for user_id in user_ids:
                 incoming_rank = 0.0
-                for follower_id in self.followers[user_id]:
+                for follower_id in self.followers[user_id]: #za svakog gledamo koga prate
                     incoming_rank += ranks[follower_id] / self.out_degree[follower_id]
 
                 restart_rank = 1.0 - damping_factor if user_id == start_id else 0.0
@@ -343,10 +343,15 @@ class SocialGraph:
         if not first_words and not second_words:
             return 0.0
 
-        union = first_words | second_words
+        union = first_words | second_words #sve reci bez duplikata
         if not union:
             return 0.0
         return len(first_words & second_words) / len(union)
+
+    def common_bio_word_count(self, first_id: int, second_id: int) -> int:
+        first_words = self.bio_words_by_user.get(first_id, set())
+        second_words = self.bio_words_by_user.get(second_id, set())
+        return len(first_words & second_words)
 
     def get_interaction_history(self, user_id: int) -> list[FollowInteraction]:
         self._ensure_known_user(user_id)
