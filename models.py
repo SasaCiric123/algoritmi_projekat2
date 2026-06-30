@@ -27,3 +27,11 @@ class FollowInteraction:
 class FollowResult:
     success: bool
     message: str
+
+
+@dataclass(frozen=True)
+class RecommendationResult:
+    user: User
+    ppr_score: float
+    content_similarity: float
+    score: float

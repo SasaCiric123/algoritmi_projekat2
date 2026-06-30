@@ -5,7 +5,7 @@ import heapq
 from pathlib import Path
 
 from data_loader import load_graph_from_folder
-from models import FollowInteraction, FollowResult, SearchResult, User
+from models import FollowInteraction, FollowResult, RecommendationResult, SearchResult, User
 from string_similarity import levenshtein_distance
 from text_processing import tokenize_text
 from trie import Trie
@@ -248,6 +248,105 @@ class SocialGraph:
 
         closest = heapq.nsmallest(limit, candidates, key=lambda item: item[:3])
         return [user for _, _, _, user in closest]
+
+    def recommend_users(
+        self,
+        user_id: int,
+        alpha: float = 0.5,
+        limit: int = 10,
+    ) -> list[RecommendationResult]:
+        self._ensure_known_user(user_id)
+        if alpha < 0.0 or alpha > 1.0:
+            raise ValueError("Alpha mora biti izmedju 0 i 1.")
+
+        ppr_scores = self.calculate_personalized_page_rank(user_id)
+        excluded_ids = set(self.following[user_id])
+        excluded_ids.add(user_id)
+        excluded_ids.update(self.blocked_by_user[user_id])
+        excluded_ids.update(
+            blocker_id
+            for blocker_id, blocked_ids in self.blocked_by_user.items()
+            if user_id in blocked_ids
+        )
+
+        recommendations = []
+        for candidate_id, candidate in self.users_by_id.items():
+            if candidate_id in excluded_ids:
+                continue
+
+            ppr_score = ppr_scores.get(candidate_id, 0.0)
+            content_similarity = self.jaccard_bio_similarity(user_id, candidate_id)
+            score = alpha * ppr_score + (1.0 - alpha) * content_similarity
+            if score <= 0.0:
+                continue
+
+            recommendations.append(
+                RecommendationResult(
+                    user=candidate,
+                    ppr_score=ppr_score,
+                    content_similarity=content_similarity,
+                    score=score,
+                )
+            )
+
+        return heapq.nlargest(
+            limit,
+            recommendations,
+            key=lambda result: (result.score, result.ppr_score, result.content_similarity),
+        )
+
+    def calculate_personalized_page_rank(
+        self,
+        start_id: int,
+        damping_factor: float = 0.85,
+        epsilon: float = 1e-6,
+        max_iterations: int = 100,
+    ) -> dict[int, float]:
+        self._ensure_known_user(start_id)
+        user_ids = list(self.users_by_id.keys())
+        user_count = len(user_ids)
+        if user_count == 0:
+            return {}
+
+        ranks = {user_id: 0.0 for user_id in user_ids}
+        ranks[start_id] = 1.0
+
+        for _ in range(max_iterations):
+            dangling_sum = sum(
+                ranks[user_id]
+                for user_id in user_ids
+                if self.out_degree[user_id] == 0
+            )
+            dangling_share = dangling_sum / user_count
+            new_ranks = {}
+            max_change = 0.0
+
+            for user_id in user_ids:
+                incoming_rank = 0.0
+                for follower_id in self.followers[user_id]:
+                    incoming_rank += ranks[follower_id] / self.out_degree[follower_id]
+
+                restart_rank = 1.0 - damping_factor if user_id == start_id else 0.0
+                new_rank = restart_rank + damping_factor * (incoming_rank + dangling_share)
+                new_ranks[user_id] = new_rank
+                max_change = max(max_change, abs(new_rank - ranks[user_id]))
+
+            ranks = new_ranks
+            if max_change < epsilon:
+                break
+
+        return ranks
+
+    def jaccard_bio_similarity(self, first_id: int, second_id: int) -> float:
+        first_words = self.bio_words_by_user.get(first_id, set())
+        second_words = self.bio_words_by_user.get(second_id, set())
+        if not first_words and not second_words:
+            return 0.0
+
+        union = first_words | second_words
+        if not union:
+            return 0.0
+        return len(first_words & second_words) / len(union)
 
     def get_interaction_history(self, user_id: int) -> list[FollowInteraction]:
         self._ensure_known_user(user_id)

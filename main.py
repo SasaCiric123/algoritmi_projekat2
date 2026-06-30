@@ -33,7 +33,8 @@ def run_menu(graph: SocialGraph) -> None:
         print("4. Prikaz istorije interakcija")
         print("5. BFS obilazak mreze")
         print("6. Autocomplete username")
-        print("7. Izlaz")
+        print("7. Preporuka korisnika")
+        print("8. Izlaz")
 
         choice = input("Izaberite opciju: ").strip()
 
@@ -50,6 +51,8 @@ def run_menu(graph: SocialGraph) -> None:
         elif choice == "6":
             autocomplete_menu(graph)
         elif choice == "7":
+            recommendations_menu(graph)
+        elif choice == "8":
             print("Kraj programa.")
             break
         else:
@@ -163,6 +166,27 @@ def autocomplete_menu(graph: SocialGraph) -> None:
         print(f"- {format_user(user)} | PageRank={rank:.8f}")
 
 
+def recommendations_menu(graph: SocialGraph) -> None:
+    user = read_user(graph, "Unesite korisnika za preporuke (id ili username): ")
+    if user is None:
+        print("Korisnik ne postoji.")
+        return
+
+    alpha = read_alpha(default=0.5)
+    recommendations = graph.recommend_users(user.user_id, alpha=alpha, limit=10)
+
+    if not recommendations:
+        print("Nema dostupnih preporuka za zadatog korisnika.")
+        return
+
+    print(f"\nPreporuke za {format_user(user)}:")
+    for result in recommendations:
+        print(
+            f"- {format_user(result.user)} | score={result.score:.8f} "
+            f"| PPR={result.ppr_score:.8f} | bio={result.content_similarity:.4f}"
+        )
+
+
 def read_user(graph: SocialGraph, prompt: str) -> User | None:
     value = input(prompt).strip()
     user = graph.get_user_by_id_or_username(value)
@@ -198,6 +222,23 @@ def read_positive_int(prompt: str, default: int) -> int:
         print(f"Broj mora biti pozitivan. Koristim podrazumevano: {default}.")
         return default
     return number
+
+
+def read_alpha(default: float = 0.5) -> float:
+    value = input(f"Alpha, 0-1 [{default}]: ").strip()
+    if not value:
+        return default
+
+    try:
+        alpha = float(value)
+    except ValueError:
+        print(f"Neispravna alpha vrednost. Koristim podrazumevano: {default}.")
+        return default
+
+    if alpha < 0.0 or alpha > 1.0:
+        print(f"Alpha mora biti izmedju 0 i 1. Koristim podrazumevano: {default}.")
+        return default
+    return alpha
 
 
 def format_interaction(graph: SocialGraph, selected_user: User, interaction: FollowInteraction) -> str:
