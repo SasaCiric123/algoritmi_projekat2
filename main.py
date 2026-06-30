@@ -172,7 +172,11 @@ def recommendations_menu(graph: SocialGraph) -> None:
         print("Korisnik ne postoji.")
         return
 
-    alpha = read_alpha(default=0.5)
+    alpha = read_alpha()
+    if alpha is None:
+        print("Preporuke su otkazane.")
+        return
+
     recommendations = graph.recommend_users(user.user_id, alpha=alpha, limit=10)
 
     if not recommendations:
@@ -224,21 +228,23 @@ def read_positive_int(prompt: str, default: int) -> int:
     return number
 
 
-def read_alpha(default: float = 0.5) -> float:
-    value = input(f"Alpha, 0-1 [{default}]: ").strip()
-    if not value:
-        return default
+def read_alpha() -> float | None:
+    while True:
+        value = input("Alpha, 0-1 (x za odustajanje): ").strip().lower()
+        if value == "x":
+            return None
 
-    try:
-        alpha = float(value)
-    except ValueError:
-        print(f"Neispravna alpha vrednost. Koristim podrazumevano: {default}.")
-        return default
+        try:
+            alpha = float(value)
+        except ValueError:
+            print("Neispravna alpha vrednost. Unesite broj izmedju 0 i 1 ili x za odustajanje.")
+            continue
 
-    if alpha < 0.0 or alpha > 1.0:
-        print(f"Alpha mora biti izmedju 0 i 1. Koristim podrazumevano: {default}.")
-        return default
-    return alpha
+        if alpha < 0.0 or alpha > 1.0:
+            print("Alpha mora biti izmedju 0 i 1. Pokusajte ponovo ili unesite x za odustajanje.")
+            continue
+
+        return alpha
 
 
 def format_interaction(graph: SocialGraph, selected_user: User, interaction: FollowInteraction) -> str:
